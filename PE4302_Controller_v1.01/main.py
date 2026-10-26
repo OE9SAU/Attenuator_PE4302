@@ -91,7 +91,7 @@ class Main(QMainWindow):
   ticks=QHBoxLayout();
   for n in ['0','5','10','15','20','25','30','31,5']:ticks.addWidget(label(n,size=12));
   a.addLayout(ticks)
-  controls=QHBoxLayout();steps=QVBoxLayout();steps.addWidget(label('Schrittweite',True,14));sb=QHBoxLayout();self.stepbuttons=[]
+  controls=QHBoxLayout();steps=QVBoxLayout();steps.addWidget(label('Manuelle Schrittweite',True,14));sb=QHBoxLayout();self.stepbuttons=[]
   for val in [.5,1,3,6]:
    btn=button(str(val).replace('.',',')+' dB');btn.clicked.connect(lambda checked=False,v=val:self.set_step(v));sb.addWidget(btn);self.stepbuttons.append((val,btn))
   steps.addLayout(sb);controls.addLayout(steps,4)
