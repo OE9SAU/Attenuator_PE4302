@@ -62,7 +62,7 @@ class Main(QMainWindow):
   top=QHBoxLayout();top.setSpacing(10);outer.addLayout(top,3)
   left=QVBoxLayout();title=label('PE4302 Digital Step Attenuator',True,22,'white');title.setStyleSheet('background:#0953a2;color:white;font-size:22px;font-weight:700;padding:11px;border-radius:4px');left.addWidget(title)
   specs=QGridLayout();specs.setContentsMargins(12,8,4,4);specs.setHorizontalSpacing(8)
-  for i,(k,v) in enumerate([('Frequenzbereich:','DC – 4 GHz'),('Dämpfungsbereich:','0 – 31,5 dB'),('Schrittweite:','0,5 dB (6 Bit)'),('Impedanz:','50 Ω'),('Steuerung:','Seriell (3-Wire) oder Parallel')]):specs.addWidget(label(k,size=14),i,0);specs.addWidget(label(v,size=14),i,1)
+  for i,(k,v) in enumerate([('Frequenzbereich:','DC – 4 GHz'),('Dämpfungsbereich:','0 – 31,5 dB'),('Schrittweite:','0,5 dB (6 Bit)'),('Impedanz:','50 Ω'),('Steuerung:','USB oder Encoder')]):specs.addWidget(label(k,size=14),i,0);specs.addWidget(label(v,size=14),i,1)
   left.addLayout(specs);left.addStretch();top.addWidget(self.panel(left),31)
   s=QVBoxLayout();s.addWidget(label('Dämpfungsglied (vereinfachtes Schema)',True,16));s.addWidget(Schematic(),1);top.addWidget(self.panel(s),33)
   c=QVBoxLayout();c.addWidget(label('Dämpfung über Frequenz (typisch)',True,16));c.addWidget(Chart(),1);top.addWidget(self.panel(c),36)
@@ -98,7 +98,7 @@ class Main(QMainWindow):
   terminal=QVBoxLayout();hd=QHBoxLayout();hd.addWidget(label('Kommando-/Statusanzeige (Simulation)',True,16,BLUE));hd.addStretch();clear=button('Löschen');clear.setMaximumWidth(115);clear.clicked.connect(lambda:self.console.clear());hd.addWidget(clear);terminal.addLayout(hd)
   self.console=QPlainTextEdit();self.console.setReadOnly(True);self.console.setStyleSheet('background:#0d151d;color:#43e77d;font:13px Consolas;border:0;border-radius:4px');terminal.addWidget(self.console,1)
   entry=QHBoxLayout();self.command=QLineEdit();self.command.setPlaceholderText('z.B. ATT 10.5 oder HELP');self.command.setMinimumHeight(39);self.command.returnPressed.connect(self.run_command);send=button('Senden');send.clicked.connect(self.run_command);entry.addWidget(self.command,1);entry.addWidget(send);terminal.addLayout(entry);bottom.addWidget(self.panel(terminal),56)
-  self.set_step(.5);self.set_att(10.5);self.refresh_presets();self.log('PE4302 Controller v0.6 (Simulation) – by OE9SAU\nBefehl HELP für Befehlsliste\nSIMULATION: keine USB-Übertragung')
+  self.set_step(.5);self.set_att(10.5);self.refresh_presets();self.log('PE4302 Controller v2.0 (Simulation) – by OE9SAU\nBefehl HELP für Befehlsliste\nSIMULATION: keine USB-Übertragung')
  def panel(self,layout):
   f=QFrame();f.setObjectName('panel');f.setLayout(layout);f.setStyleSheet('QFrame#panel{background:#fafcff;border:1px solid #c6d5e5;border-radius:5px;}');layout.setContentsMargins(13,9,13,10);return f
  def set_att(self,v,update_slider=True):
@@ -131,7 +131,7 @@ class Main(QMainWindow):
    elif cmd=='MAX':self.set_att(31.5);self.log('OK: 31.5 dB')
    elif cmd in ('PRESET','STORE') and len(parts)==2:
     n=int(parts[1]);assert 1<=n<=4;self.selected=n-1;self.refresh_presets();self.recall() if cmd=='PRESET' else self.store()
-   elif cmd=='IDN?':self.log('PE4302 Attenuator Controller v0.6 – by OE9SAU (Simulation)')
+   elif cmd=='IDN?':self.log('PE4302 Attenuator Controller v2.0 – by OE9SAU (Simulation)')
    elif cmd=='HELP':self.log('ATT <Wert> | ATT? | STEP <+/-dB> | MIN | MAX | PRESET 1..4 | STORE 1..4 | IDN? | HELP | SWEEP ...')
    elif cmd=='SWEEP':self.log('SIMULATION: Sweep für spätere Version vorgesehen.')
    else:self.log('ERR: Unbekannter Befehl oder Parameter. HELP eingeben.')
