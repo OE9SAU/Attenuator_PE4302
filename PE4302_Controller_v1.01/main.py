@@ -22,7 +22,7 @@ class Schematic(QWidget):
   for dx,dy in [(-27,0),(-19,-12),(-10,12),(0,-12),(10,12),(19,0),(45,0)]:path.lineTo(cx+dx,cy+dy)
   p.drawPath(path);p.setBrush(QColor('white'))
   for x in [w*.18,w*.82]:p.drawEllipse(QPointF(x,cy),9,9)
-  p.setPen(QColor('#111'));p.setFont(QFont('Arial',11));p.drawText(QRectF(w*.02,cy-30,w*.16,65),Qt.AlignCenter,'RF IN\n50 Ω');p.drawText(QRectF(w*.82,cy-30,w*.17,65),Qt.AlignCenter,'RF OUT\n50 Ω')
+  p.setPen(QColor('#111'));p.setFont(QFont('Arial',11));p.drawText(QRectF(w*.02, cy-22, w*.16, 20),Qt.AlignCenter, 'RF IN');p.drawText(QRectF(w*.02, cy, w*.16, 20),Qt.AlignCenter, '50 Ω');p.drawText(QRectF(w*.82, cy-22, w*.17, 20),Qt.AlignCenter, 'RF OUT'),p.drawText(QRectF(w*.82, cy, w*.17, 20),Qt.AlignCenter, '50 Ω')
   p.setFont(QFont('Arial',12,QFont.Bold));p.drawText(QRectF(cx-90,cy+42,180,24),Qt.AlignCenter,'PE4302')
   p.setFont(QFont('Arial',10));p.drawText(QRectF(cx-130,cy+65,260,45),Qt.AlignHCenter,'0 … 31,5 dB\n0,5 dB Schritte')
 
@@ -31,10 +31,10 @@ class LevelCalculator(QWidget):
  def __init__(self):
   super().__init__()
   layout=QVBoxLayout(self);layout.setContentsMargins(8,3,8,3);layout.setSpacing(5)
-  row=QHBoxLayout();row.addWidget(label('RF IN:',True,13))
+  row=QHBoxLayout();row.setSpacing(3);row.addWidget(label('RF IN:',True,13))
   self.input=QDoubleSpinBox();self.input.setRange(-120.0,40.0);self.input.setDecimals(1);self.input.setSingleStep(1.0);self.input.setSuffix(' dBm');self.input.setValue(0.0);self.input.setMinimumHeight(29)
-  self.input.valueChanged.connect(self.recalculate);row.addWidget(self.input,1)
-  row.addWidget(label('Dämpfung:',size=12));self.attenuation=label('10,5 dB',True,14,BLUE);row.addWidget(self.attenuation);layout.addLayout(row)
+  self.input.valueChanged.connect(self.recalculate);self.input.setFixedWidth(100);row.addWidget(self.input)
+  row.addSpacing(30);row.addWidget(label('Dämpfung:',size=12));self.attenuation=label('10,5 dB',True,14,BLUE);row.addWidget(self.attenuation);layout.addLayout(row)
   grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(10)
   grid.addWidget(label('50 Ω · Sinus',size=11,color='#53647a'),0,0)
   for col, heading in ((1, 'RF IN'), (2, 'RF OUT')):
@@ -49,10 +49,14 @@ class LevelCalculator(QWidget):
     grid.addWidget(v,idx,col);self.fields[(key,col)]=v
   grid.setColumnStretch(0,2);grid.setColumnStretch(1,3);grid.setColumnStretch(2,3)
   layout.addLayout(grid);layout.addStretch()
-  note=label('Theoretisch · ohne Einfügedämpfung und Frequenzkorrektur',size=10,color='#65758a');note.setWordWrap(True);layout.addWidget(note)
-  self.att=10.5;self.recalculate()
- def set_attenuation(self,att):
-  self.att=att;self.recalculate()
+  note=label('Theoretisch · mit Messkorrektur, ohne weitere Frequenzabweichungen',size=10,color='#65758a');note.setWordWrap(True);layout.addWidget(note)
+  self.att=10.5;self.correction=0.0;self.recalculate()
+ def set_attenuation(self,att,correction=None):
+  self.att=float(att)
+  if correction is not None:self.correction=float(correction)
+  self.recalculate()
+ def set_correction(self,correction):
+  self.correction=float(correction);self.recalculate()
  @staticmethod
  def voltage(v):
   av=abs(v)
@@ -66,21 +70,22 @@ class LevelCalculator(QWidget):
   if mw<1000:return f'{mw:.4g} mW'.replace('.',',')
   return f'{mw/1000:.4g} W'.replace('.',',')
  def recalculate(self,*args):
-  self.attenuation.setText(f'{self.att:.1f} dB'.replace('.',','))
-  for col,dbm in [(1,self.input.value()),(2,self.input.value()-self.att)]:
+  real_att=self.att+self.correction
+  self.attenuation.setText(f'{real_att:.1f} dB'.replace('.',','))
+  for col,dbm in [(1,self.input.value()),(2,self.input.value()-real_att)]:
    mw=10**(dbm/10);rms=math.sqrt(mw*.001*50)
    values={'dbm':f'{dbm:.1f} dBm'.replace('.',','),'mw':self.power(mw),'rms':self.voltage(rms),'peak':self.voltage(rms*math.sqrt(2)),'pp':self.voltage(rms*2*math.sqrt(2))}
    for key,val in values.items():self.fields[(key,col)].setText(val)
 
 class Main(QMainWindow):
  def __init__(self):
-  super().__init__();self.setWindowTitle('PE4302 Attenuator Controller v1.01 – by OE9SAU');self.resize(1500,1010);self.setMinimumSize(1160,800)
-  self.ser=None;self.rx_buffer=b'';self.att=10.5;self.step=0.5;self.presets=[0.,10.,20.,31.5];self.selected=0
+  super().__init__();self.setWindowTitle('PE4302 Attenuator Controller v2.1 – by OE9SAU');self.resize(1500,1010);self.setMinimumSize(1160,800)
+  self.ser=None;self.rx_buffer=b'';self.att=10.5;self.correction=0.0;self.step=0.5;self.presets=[0.,10.,20.,31.5];self.selected=0
   root=QWidget();self.setCentralWidget(root);outer=QVBoxLayout(root);outer.setContentsMargins(12,10,12,10);outer.setSpacing(9)
   top=QHBoxLayout();top.setSpacing(10);outer.addLayout(top,3)
   left=QVBoxLayout();title=label('PE4302 Digital Step Attenuator',True,22,'white');title.setStyleSheet('background:#0953a2;color:white;font-size:22px;font-weight:700;padding:11px;border-radius:4px');left.addWidget(title)
   specs=QGridLayout();specs.setContentsMargins(12,8,4,4);specs.setHorizontalSpacing(8)
-  for i,(k,v) in enumerate([('Frequenzbereich:','DC – 4 GHz'),('Dämpfungsbereich:','0 – 31,5 dB'),('Schrittweite:','0,5 dB (6 Bit)'),('Impedanz:','50 Ω'),('Steuerung:','Seriell (3-Wire) oder Parallel')]):specs.addWidget(label(k,size=14),i,0);specs.addWidget(label(v,size=14),i,1)
+  for i,(k,v) in enumerate([('Frequenzbereich:','DC – 4 GHz'),('Dämpfungsbereich:','0 – 31,5 dB'),('Einfügedämpfung:','+/- 1.2 dB (mit CORR einstellbar)'),('Schrittweite:','0,5 dB (6 Bit)'),('Impedanz:','50 Ω'),('Steuerung:','Drehencoder/OLED oder GUI')]):specs.addWidget(label(k,size=14),i,0);specs.addWidget(label(v,size=14),i,1)
   left.addLayout(specs);left.addStretch();top.addWidget(self.panel(left),31)
   s=QVBoxLayout();s.addWidget(label('Dämpfungsglied (vereinfachtes Schema)',True,16));s.addWidget(Schematic(),1);top.addWidget(self.panel(s),33)
   c=QVBoxLayout();c.addWidget(label('HF-Pegel- und Spannungsrechner (50 Ω)',True,16));self.level_calculator=LevelCalculator();c.addWidget(self.level_calculator,1);top.addWidget(self.panel(c),36)
@@ -91,7 +96,7 @@ class Main(QMainWindow):
   ticks=QHBoxLayout();
   for n in ['0','5','10','15','20','25','30','31,5']:ticks.addWidget(label(n,size=12));
   a.addLayout(ticks)
-  controls=QHBoxLayout();steps=QVBoxLayout();steps.addWidget(label('Manuelle Schrittweite',True,14));sb=QHBoxLayout();self.stepbuttons=[]
+  controls=QHBoxLayout();steps=QVBoxLayout();steps.addWidget(label('Schrittweite',True,14));sb=QHBoxLayout();self.stepbuttons=[]
   for val in [.5,1,3,6]:
    btn=button(str(val).replace('.',',')+' dB');btn.clicked.connect(lambda checked=False,v=val:self.set_step(v));sb.addWidget(btn);self.stepbuttons.append((val,btn))
   steps.addLayout(sb);controls.addLayout(steps,4)
@@ -107,22 +112,86 @@ class Main(QMainWindow):
   self.state=label('●   Nicht verbunden',size=14);self.state.setStyleSheet('background:#edf2f6;color:#222;padding:18px;border-radius:5px');con.addWidget(self.state);cr=QHBoxLayout()
   self.connect_btn=button('Verbinden');self.connect_btn.clicked.connect(self.connect_device);cr.addWidget(self.connect_btn)
   self.disconnect_btn=button('Trennen');self.disconnect_btn.clicked.connect(self.disconnect_device);self.disconnect_btn.setEnabled(False);cr.addWidget(self.disconnect_btn)
-  con.addLayout(cr);con.addStretch();middle.addWidget(self.panel(con),21)
+  con.addLayout(cr)
+  con.addStretch();middle.addWidget(self.panel(con),21)
   bottom=QHBoxLayout();bottom.setSpacing(10);outer.addLayout(bottom,4)
-  commands=QVBoxLayout();commands.addWidget(label('Befehle',True,16,BLUE));cmds=[('ATT <Wert>','Dämpfung setzen (0 … 31,5 dB, Schritt 0,5 dB)'),('ATT?','Aktuelle Dämpfung abfragen'),('STEP +0.5','Dämpfung um Schritt erhöhen'),('STEP -0.5','Dämpfung um Schritt verringern'),('MIN','0 dB einstellen'),('MAX','31,5 dB einstellen'),('PRESET 1','Speicherplatz 1 abrufen'),('STORE 1','Aktuelle Dämpfung in Speicherplatz 1 speichern'),('SWEEP 0 31.5 0.5 100','Sweep von 0 bis 31,5 dB, 0,5 dB Schritte, 100 ms'),('IDN?','Gerätekennung abfragen'),('HELP','Befehlsübersicht')]
-  for i,(cmd,desc) in enumerate(cmds):
-   line=QHBoxLayout();line.setContentsMargins(5,2,5,2);cl=label(cmd,size=12,color='#0759cf');cl.setMinimumWidth(175);line.addWidget(cl);line.addWidget(label(desc,size=11),1);w=QWidget();w.setLayout(line);w.setStyleSheet('background:#edf2f6' if i%2==0 else 'background:white');commands.addWidget(w)
-  commands.addStretch();bottom.addWidget(self.panel(commands),44)
+  
+  commands = QVBoxLayout()
+  commands.setSpacing(3)
+  commands.addWidget(label('Befehle · Arduino HELP', True, 12, BLUE))
+
+  cmds = [
+      ('ATT x.x',   'Dämpfung setzen (0 bis 31,5 dB)'),
+      ('ATT?',      'Hardware-Dämpfung abfragen'),
+      ('REAL?',     'Reale Dämpfung abfragen'),
+      ('CORR x.x',  'Messkorrektur einstellen'),
+      ('CORR?',     'Messkorrektur abfragen'),
+      ('STEP +0.5', 'Dämpfung erhöhen'),
+      ('STEP -0.5', 'Dämpfung verringern'),
+      ('MIN',       'Dämpfung auf 0 dB'),
+      ('MAX',       'Dämpfung auf 31,5 dB'),
+      ('SAVE',      'Dämpfung speichern'),
+      ('SAVE CORR', 'Messkorrektur speichern'),
+      ('STATUS?',   'Alle Werte abfragen'),
+      ('IDN?',      'Geräteinformation'),
+      ('HELP',      'Befehlsübersicht')
+  ]
+
+  help_grid = QGridLayout()
+  help_grid.setContentsMargins(0, 0, 0, 0)
+  help_grid.setHorizontalSpacing(0)
+  help_grid.setVerticalSpacing(1)
+
+  for row, (cmd, description) in enumerate(cmds):
+      bg = '#e5ebf1' if row % 2 == 0 else '#f8fafc'
+
+      row_widget = QWidget()
+      row_widget.setObjectName('helpRow')
+      row_widget.setStyleSheet(
+          f'QWidget#helpRow {{ background-color: {bg}; }}'
+      )
+
+      row_layout = QHBoxLayout(row_widget)
+      row_layout.setContentsMargins(8, 3, 8, 3)
+      row_layout.setSpacing(10)
+
+      cmd_label = label(cmd, True, 10, BLUE)
+      cmd_label.setStyleSheet(
+          'color:#0759cf; font-size:10px; font-weight:700; background:transparent;'
+      )
+      cmd_label.setFixedWidth(100)
+      cmd_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+      desc_label = label(description, size=10)
+      desc_label.setStyleSheet(
+          'color:#222222; font-size:10px; background:transparent;'
+      )
+      desc_label.setWordWrap(True)
+      desc_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+      row_layout.addWidget(cmd_label)
+      row_layout.addWidget(desc_label, 1)
+
+      help_grid.addWidget(row_widget, row, 0)
+
+  commands.addLayout(help_grid)
+  commands.addStretch()
+
+  
+  bottom.addWidget(self.panel(commands), 44)
   terminal=QVBoxLayout();hd=QHBoxLayout();hd.addWidget(label('Kommando-/Statusanzeige',True,16,BLUE));hd.addStretch();clear=button('Löschen');clear.setMaximumWidth(115);clear.clicked.connect(lambda:self.console.clear());hd.addWidget(clear);terminal.addLayout(hd)
   self.console=QPlainTextEdit();self.console.setReadOnly(True);self.console.setStyleSheet('background:#0d151d;color:#43e77d;font:13px Consolas;border:0;border-radius:4px');terminal.addWidget(self.console,1)
-  entry=QHBoxLayout();self.command=QLineEdit();self.command.setPlaceholderText('z.B. ATT 10.5 oder HELP');self.command.setMinimumHeight(39);self.command.returnPressed.connect(self.run_command);send=button('Senden');send.clicked.connect(self.run_command);entry.addWidget(self.command,1);entry.addWidget(send);terminal.addLayout(entry);bottom.addWidget(self.panel(terminal),56)
-  self.set_step(.5);self.set_att(10.5);self.refresh_presets();self.refresh_ports();self.log('PE4302 Controller v1.01 – by OE9SAU\nUSB: 38400 Baud; Arduino V3.0')
+  entry=QHBoxLayout();self.command=QLineEdit();self.command.setPlaceholderText('z.B. ATT 10.5, CORR 0.3 oder HELP');self.command.setMinimumHeight(39);self.command.returnPressed.connect(self.run_command);send=button('Senden');send.clicked.connect(self.run_command);entry.addWidget(self.command,1);entry.addWidget(send);terminal.addLayout(entry);bottom.addWidget(self.panel(terminal),56)
+  self.set_step(.5);self.set_att(10.5);self.refresh_presets();self.refresh_ports();self.log('PE4302 Controller v2.1 – by OE9SAU\nUSB: 38400 Baud; Arduino V3.0')
   self.poll_timer=QTimer(self);self.poll_timer.timeout.connect(self.poll_serial);self.poll_timer.start(30)
  def panel(self,layout):
   f=QFrame();f.setObjectName('panel');f.setLayout(layout);f.setStyleSheet('QFrame#panel{background:#fafcff;border:1px solid #c6d5e5;border-radius:5px;}');layout.setContentsMargins(13,9,13,10);return f
  def set_att(self,v,update_slider=True):
-  self.att=max(0,min(31.5,round(v*2)/2));self.level_calculator.set_attenuation(self.att);self.big.setText(f'{self.att:.1f} dB');self.spin.blockSignals(True);self.spin.setValue(self.att);self.spin.blockSignals(False)
+  self.att=max(0,min(31.5,round(v*2)/2));self.level_calculator.set_attenuation(self.att,self.correction);self.big.setText(f'{self.att:.1f} dB');self.spin.blockSignals(True);self.spin.setValue(self.att);self.spin.blockSignals(False)
   if update_slider:self.slider.blockSignals(True);self.slider.setValue(round(self.att*2));self.slider.blockSignals(False)
+ def update_correction(self,value):
+  self.correction=float(value)
+  self.level_calculator.set_correction(self.correction)
  def apply_direct_input(self):
   # Commit the value still being edited before reading the spin box.
   self.spin.interpretText()
@@ -196,7 +265,12 @@ class Main(QMainWindow):
   self.log('< '+line)
   if line.startswith('STATUS '):
    values=dict(re.findall(r'(ATT|REAL|CORR)=(-?\d+(?:\.\d+)?)',line))
+   if 'CORR' in values:self.update_correction(float(values['CORR']))
    if 'ATT' in values:self.set_att(float(values['ATT']))
+  elif line.startswith('OK CORR ') or line.startswith('CORR '):
+   try:
+    self.update_correction(float(line.split()[-1]))
+   except ValueError:pass
   elif line.startswith('EVENT ATT ') or line.startswith('OK ATT ') or line.startswith('ATT '):
    try:self.set_att(float(line.split()[-1]))
    except ValueError:pass
@@ -209,7 +283,6 @@ class Main(QMainWindow):
     n=int(parts[1]);assert 1<=n<=4
     self.selected=n-1;self.refresh_presets()
     self.recall() if cmd=='PRESET' else self.store()
-   elif cmd=='SWEEP':self.log('SWEEP wird von Arduino V3.0 nicht unterstützt.')
    else:self.send_serial(raw.replace(',','.'))
   except (ValueError,AssertionError):self.log('ERR: Ungültiger Parameter')
  def closeEvent(self,event):
