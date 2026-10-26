@@ -85,7 +85,7 @@ class Main(QMainWindow):
   top=QHBoxLayout();top.setSpacing(10);outer.addLayout(top,3)
   left=QVBoxLayout();title=label('PE4302 Digital Step Attenuator',True,22,'white');title.setStyleSheet('background:#0953a2;color:white;font-size:22px;font-weight:700;padding:11px;border-radius:4px');left.addWidget(title)
   specs=QGridLayout();specs.setContentsMargins(12,8,4,4);specs.setHorizontalSpacing(8)
-  for i,(k,v) in enumerate([('Frequenzbereich:','DC – 4 GHz'),('Dämpfungsbereich:','0 – 31,5 dB'),('Einfügedämpfung:','+/- 1.2 dB (mit CORR einstellbar)'),('Schrittweite:','0,5 dB (6 Bit)'),('Impedanz:','50 Ω'),('Steuerung:','Drehencoder/OLED oder GUI')]):specs.addWidget(label(k,size=14),i,0);specs.addWidget(label(v,size=14),i,1)
+  for i,(k,v) in enumerate([('Frequenzbereich:','DC – 4 GHz'),('Dämpfungsbereich:','0 – 31,5 dB'),('Einfügedämpfung:','+/- 1,2 dB (mit CORR einstellbar)'),('Schrittweite:','0,5 dB (6 Bit)'),('Impedanz:','50 Ω'),('Steuerung:','Drehencoder/OLED oder GUI')]):specs.addWidget(label(k,size=14),i,0);specs.addWidget(label(v,size=14),i,1)
   left.addLayout(specs);left.addStretch();top.addWidget(self.panel(left),31)
   s=QVBoxLayout();s.addWidget(label('Dämpfungsglied (vereinfachtes Schema)',True,16));s.addWidget(Schematic(),1);top.addWidget(self.panel(s),33)
   c=QVBoxLayout();c.addWidget(label('HF-Pegel- und Spannungsrechner (50 Ω)',True,16));self.level_calculator=LevelCalculator();c.addWidget(self.level_calculator,1);top.addWidget(self.panel(c),36)
