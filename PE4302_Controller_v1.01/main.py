@@ -1,5 +1,7 @@
 import sys, math, re
 from PySide6.QtCore import Qt, QRectF, QPointF, Signal, QTimer
+import serial
+from serial.tools import list_ports
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPainterPath
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QLabel,QPushButton,QFrame,QSlider,QDoubleSpinBox,QComboBox,QPlainTextEdit,QLineEdit,QGroupBox,QSizePolicy)
 BLUE='#0953a2'; LIGHT='#e7f2fc'; BORDER='#c6d5e5'
@@ -20,14 +22,7 @@ class Schematic(QWidget):
   for dx,dy in [(-27,0),(-19,-12),(-10,12),(0,-12),(10,12),(19,0),(45,0)]:path.lineTo(cx+dx,cy+dy)
   p.drawPath(path);p.setBrush(QColor('white'))
   for x in [w*.18,w*.82]:p.drawEllipse(QPointF(x,cy),9,9)
-  p.setPen(QColor('#111'))
-  p.setFont(QFont('Arial', 11))
-  # Beschriftungen exakt mittig über den jeweiligen 50-Ohm-Werten
-  # Beide Zeilen nutzen dieselbe X-Position und Textfeldbreite.
-  for x, caption in ((w*.02, 'RF IN'), (w*.82, 'RF OUT')):
-   width = w*.16 if caption == 'RF IN' else w*.17
-   p.drawText(QRectF(x, cy-30, width, 24), Qt.AlignCenter, caption)
-   p.drawText(QRectF(x, cy-6, width, 24), Qt.AlignCenter, '50 Ω')
+  p.setPen(QColor('#111'));p.setFont(QFont('Arial',11));p.drawText(QRectF(w*.02,cy-30,w*.16,65),Qt.AlignCenter,'RF IN\n50 Ω');p.drawText(QRectF(w*.82,cy-30,w*.17,65),Qt.AlignCenter,'RF OUT\n50 Ω')
   p.setFont(QFont('Arial',12,QFont.Bold));p.drawText(QRectF(cx-90,cy+42,180,24),Qt.AlignCenter,'PE4302')
   p.setFont(QFont('Arial',10));p.drawText(QRectF(cx-130,cy+65,260,45),Qt.AlignHCenter,'0 … 31,5 dB\n0,5 dB Schritte')
 
@@ -79,8 +74,8 @@ class LevelCalculator(QWidget):
 
 class Main(QMainWindow):
  def __init__(self):
-  super().__init__();self.setWindowTitle('PE4302 Attenuator Controller v2.1 (Simulation) – by OE9SAU');self.resize(1500,1010);self.setMinimumSize(1160,800)
-  self.att=10.5;self.step=0.5;self.presets=[0.,10.,20.,31.5];self.selected=0
+  super().__init__();self.setWindowTitle('PE4302 Attenuator Controller v1.01 – by OE9SAU');self.resize(1500,1010);self.setMinimumSize(1160,800)
+  self.ser=None;self.rx_buffer=b'';self.att=10.5;self.step=0.5;self.presets=[0.,10.,20.,31.5];self.selected=0
   root=QWidget();self.setCentralWidget(root);outer=QVBoxLayout(root);outer.setContentsMargins(12,10,12,10);outer.setSpacing(9)
   top=QHBoxLayout();top.setSpacing(10);outer.addLayout(top,3)
   left=QVBoxLayout();title=label('PE4302 Digital Step Attenuator',True,22,'white');title.setStyleSheet('background:#0953a2;color:white;font-size:22px;font-weight:700;padding:11px;border-radius:4px');left.addWidget(title)
@@ -91,8 +86,8 @@ class Main(QMainWindow):
   c=QVBoxLayout();c.addWidget(label('HF-Pegel- und Spannungsrechner (50 Ω)',True,16));self.level_calculator=LevelCalculator();c.addWidget(self.level_calculator,1);top.addWidget(self.panel(c),36)
   middle=QHBoxLayout();middle.setSpacing(10);outer.addLayout(middle,4)
   a=QVBoxLayout();a.addWidget(label('Dämpfung einstellen',True,17,BLUE));displayrow=QHBoxLayout();self.big=label('',True,86,BLUE);self.big.setAlignment(Qt.AlignCenter);displayrow.addWidget(self.big,1)
-  lim=QVBoxLayout();bmax=button('MAX\n31,5 dB');bmin=button('MIN\n0 dB');bmax.clicked.connect(lambda:self.set_att(31.5));bmin.clicked.connect(lambda:self.set_att(0));lim.addWidget(bmax);lim.addWidget(bmin);displayrow.addLayout(lim);a.addLayout(displayrow,3)
-  self.slider=QSlider(Qt.Horizontal);self.slider.setRange(0,63);self.slider.valueChanged.connect(lambda v:self.set_att(v*.5,False));a.addWidget(self.slider)
+  lim=QVBoxLayout();bmax=button('MAX\n31,5 dB');bmin=button('MIN\n0 dB');bmax.clicked.connect(lambda:self.request_att(31.5));bmin.clicked.connect(lambda:self.request_att(0));lim.addWidget(bmax);lim.addWidget(bmin);displayrow.addLayout(lim);a.addLayout(displayrow,3)
+  self.slider=QSlider(Qt.Horizontal);self.slider.setRange(0,63);self.slider.valueChanged.connect(lambda v:self.request_att(v*.5));a.addWidget(self.slider)
   ticks=QHBoxLayout();
   for n in ['0','5','10','15','20','25','30','31,5']:ticks.addWidget(label(n,size=12));
   a.addLayout(ticks)
@@ -100,28 +95,29 @@ class Main(QMainWindow):
   for val in [.5,1,3,6]:
    btn=button(str(val).replace('.',',')+' dB');btn.clicked.connect(lambda checked=False,v=val:self.set_step(v));sb.addWidget(btn);self.stepbuttons.append((val,btn))
   steps.addLayout(sb);controls.addLayout(steps,4)
-  steplay=QVBoxLayout();steplay.addWidget(label('Schritt',True,14));sr=QHBoxLayout();minus=button('◀  –');plus=button('+  ▶');minus.clicked.connect(lambda:self.set_att(self.att-self.step));plus.clicked.connect(lambda:self.set_att(self.att+self.step));sr.addWidget(minus);sr.addWidget(plus);steplay.addLayout(sr);controls.addLayout(steplay,2)
+  steplay=QVBoxLayout();steplay.addWidget(label('Schritt',True,14));sr=QHBoxLayout();minus=button('◀  –');plus=button('+  ▶');minus.clicked.connect(lambda:self.request_att(self.att-self.step));plus.clicked.connect(lambda:self.request_att(self.att+self.step));sr.addWidget(minus);sr.addWidget(plus);steplay.addLayout(sr);controls.addLayout(steplay,2)
   direct=QVBoxLayout();direct.addWidget(label('Direkteingabe',True,14));dr=QHBoxLayout();self.spin=QDoubleSpinBox();self.spin.setRange(0,31.5);self.spin.setSingleStep(.5);self.spin.setDecimals(1);self.spin.setMinimumHeight(40);dr.addWidget(self.spin);dr.addWidget(label('dB',size=14));setb=button('Setzen');setb.clicked.connect(self.apply_direct_input);self.spin.lineEdit().returnPressed.connect(self.apply_direct_input);dr.addWidget(setb);direct.addLayout(dr);controls.addLayout(direct,3);a.addLayout(controls)
   middle.addWidget(self.panel(a),59)
   pres=QVBoxLayout();pres.addWidget(label('Speicherplätze',True,17,BLUE));pg=QGridLayout();self.pbuttons=[]
   for i in range(4):
    b=button('');b.setMinimumHeight(83);b.clicked.connect(lambda checked=False,n=i:self.choose_preset(n));pg.addWidget(b,i//2,i%2);self.pbuttons.append(b)
   pres.addLayout(pg);pres.addStretch();pr=QHBoxLayout();store=button('Speichern');recall=button('Abrufen');store.clicked.connect(self.store);recall.clicked.connect(self.recall);pr.addWidget(store);pr.addWidget(recall);pres.addLayout(pr);middle.addWidget(self.panel(pres),19)
-  con=QVBoxLayout();con.addWidget(label('Verbindung (später)',True,17,BLUE));con.addWidget(label('COM-Port:',size=14));portrow=QHBoxLayout();self.ports=QComboBox();self.ports.addItems(['COM3','COM4','COM5','Simulation (offline)']);self.ports.setMinimumHeight(39);portrow.addWidget(self.ports);refresh=button('⟳');refresh.setMaximumWidth(46);refresh.clicked.connect(lambda:self.log('SIMULATION: COM-Port-Suche noch nicht aktiv.'));portrow.addWidget(refresh);con.addLayout(portrow)
-  br=QHBoxLayout();br.addWidget(label('Baudrate:',size=14));baud=QComboBox();baud.addItems(['115200','57600','9600']);br.addWidget(baud);con.addLayout(br)
-  state=label('●   Nicht verbunden\n     (Simulationsmodus)',size=14);state.setStyleSheet('background:#edf2f6;color:#222;padding:18px;border-radius:5px');con.addWidget(state);cr=QHBoxLayout()
-  for t in ['Verbinden','Trennen']:
-   b=button(t);b.setEnabled(False);cr.addWidget(b)
+  con=QVBoxLayout();con.addWidget(label('Verbindung',True,17,BLUE));con.addWidget(label('COM-Port:',size=14));portrow=QHBoxLayout();self.ports=QComboBox();self.ports.setMinimumHeight(39);portrow.addWidget(self.ports);refresh=button('⟳');refresh.setMaximumWidth(46);refresh.clicked.connect(self.refresh_ports);portrow.addWidget(refresh);con.addLayout(portrow)
+  br=QHBoxLayout();br.addWidget(label('Baudrate:',size=14));self.baud=QComboBox();self.baud.addItems(['38400','115200','57600','9600']);br.addWidget(self.baud);con.addLayout(br)
+  self.state=label('●   Nicht verbunden',size=14);self.state.setStyleSheet('background:#edf2f6;color:#222;padding:18px;border-radius:5px');con.addWidget(self.state);cr=QHBoxLayout()
+  self.connect_btn=button('Verbinden');self.connect_btn.clicked.connect(self.connect_device);cr.addWidget(self.connect_btn)
+  self.disconnect_btn=button('Trennen');self.disconnect_btn.clicked.connect(self.disconnect_device);self.disconnect_btn.setEnabled(False);cr.addWidget(self.disconnect_btn)
   con.addLayout(cr);con.addStretch();middle.addWidget(self.panel(con),21)
   bottom=QHBoxLayout();bottom.setSpacing(10);outer.addLayout(bottom,4)
-  commands=QVBoxLayout();commands.addWidget(label('Befehle (geplant)',True,16,BLUE));cmds=[('ATT <Wert>','Dämpfung setzen (0 … 31,5 dB, Schritt 0,5 dB)'),('ATT?','Aktuelle Dämpfung abfragen'),('STEP +0.5','Dämpfung um Schritt erhöhen'),('STEP -0.5','Dämpfung um Schritt verringern'),('MIN','0 dB einstellen'),('MAX','31,5 dB einstellen'),('PRESET 1','Speicherplatz 1 abrufen'),('STORE 1','Aktuelle Dämpfung in Speicherplatz 1 speichern'),('SWEEP 0 31.5 0.5 100','Sweep von 0 bis 31,5 dB, 0,5 dB Schritte, 100 ms'),('IDN?','Gerätekennung abfragen'),('HELP','Befehlsübersicht')]
+  commands=QVBoxLayout();commands.addWidget(label('Befehle',True,16,BLUE));cmds=[('ATT <Wert>','Dämpfung setzen (0 … 31,5 dB, Schritt 0,5 dB)'),('ATT?','Aktuelle Dämpfung abfragen'),('STEP +0.5','Dämpfung um Schritt erhöhen'),('STEP -0.5','Dämpfung um Schritt verringern'),('MIN','0 dB einstellen'),('MAX','31,5 dB einstellen'),('PRESET 1','Speicherplatz 1 abrufen'),('STORE 1','Aktuelle Dämpfung in Speicherplatz 1 speichern'),('SWEEP 0 31.5 0.5 100','Sweep von 0 bis 31,5 dB, 0,5 dB Schritte, 100 ms'),('IDN?','Gerätekennung abfragen'),('HELP','Befehlsübersicht')]
   for i,(cmd,desc) in enumerate(cmds):
    line=QHBoxLayout();line.setContentsMargins(5,2,5,2);cl=label(cmd,size=12,color='#0759cf');cl.setMinimumWidth(175);line.addWidget(cl);line.addWidget(label(desc,size=11),1);w=QWidget();w.setLayout(line);w.setStyleSheet('background:#edf2f6' if i%2==0 else 'background:white');commands.addWidget(w)
   commands.addStretch();bottom.addWidget(self.panel(commands),44)
-  terminal=QVBoxLayout();hd=QHBoxLayout();hd.addWidget(label('Kommando-/Statusanzeige (Simulation)',True,16,BLUE));hd.addStretch();clear=button('Löschen');clear.setMaximumWidth(115);clear.clicked.connect(lambda:self.console.clear());hd.addWidget(clear);terminal.addLayout(hd)
+  terminal=QVBoxLayout();hd=QHBoxLayout();hd.addWidget(label('Kommando-/Statusanzeige',True,16,BLUE));hd.addStretch();clear=button('Löschen');clear.setMaximumWidth(115);clear.clicked.connect(lambda:self.console.clear());hd.addWidget(clear);terminal.addLayout(hd)
   self.console=QPlainTextEdit();self.console.setReadOnly(True);self.console.setStyleSheet('background:#0d151d;color:#43e77d;font:13px Consolas;border:0;border-radius:4px');terminal.addWidget(self.console,1)
   entry=QHBoxLayout();self.command=QLineEdit();self.command.setPlaceholderText('z.B. ATT 10.5 oder HELP');self.command.setMinimumHeight(39);self.command.returnPressed.connect(self.run_command);send=button('Senden');send.clicked.connect(self.run_command);entry.addWidget(self.command,1);entry.addWidget(send);terminal.addLayout(entry);bottom.addWidget(self.panel(terminal),56)
-  self.set_step(.5);self.set_att(10.5);self.refresh_presets();self.log('PE4302 Controller v2.1 (Simulation) – by OE9SAU\nBefehl HELP für Befehlsliste\nSIMULATION: keine USB-Übertragung')
+  self.set_step(.5);self.set_att(10.5);self.refresh_presets();self.refresh_ports();self.log('PE4302 Controller v1.01 – by OE9SAU\nUSB: 38400 Baud; Arduino V3.0')
+  self.poll_timer=QTimer(self);self.poll_timer.timeout.connect(self.poll_serial);self.poll_timer.start(30)
  def panel(self,layout):
   f=QFrame();f.setObjectName('panel');f.setLayout(layout);f.setStyleSheet('QFrame#panel{background:#fafcff;border:1px solid #c6d5e5;border-radius:5px;}');layout.setContentsMargins(13,9,13,10);return f
  def set_att(self,v,update_slider=True):
@@ -131,8 +127,7 @@ class Main(QMainWindow):
   # Commit the value still being edited before reading the spin box.
   self.spin.interpretText()
   value=self.spin.value()
-  self.command.setText(f'ATT {value:.1f}')
-  self.run_command()
+  self.request_att(value)
  def set_step(self,v):
   self.step=v
   for n,b in self.stepbuttons:b.setStyleSheet('background:#dcecff;border:2px solid #1261d7;color:#0044ac;font-weight:bold;' if n==v else '')
@@ -140,25 +135,88 @@ class Main(QMainWindow):
   for i,b in enumerate(self.pbuttons):b.setText(f'P{i+1}\n{self.presets[i]:.1f} dB');b.setStyleSheet('background:#dcecff;border:2px solid #1261d7;' if i==self.selected else '')
  def choose_preset(self,n):self.selected=n;self.refresh_presets();self.recall()
  def store(self):self.presets[self.selected]=self.att;self.refresh_presets();self.log(f'OK: P{self.selected+1} gespeichert ({self.att:.1f} dB)')
- def recall(self):self.set_att(self.presets[self.selected]);self.log(f'OK: P{self.selected+1} ({self.att:.1f} dB)')
+ def recall(self):self.request_att(self.presets[self.selected]);self.log(f'P{self.selected+1} abgerufen')
  def log(self,s):self.console.appendPlainText(s)
+ def refresh_ports(self):
+  current=self.ports.currentText();ports=[p.device for p in list_ports.comports()]
+  self.ports.clear();self.ports.addItems(ports)
+  if current in ports:self.ports.setCurrentText(current)
+  elif 'COM6' in ports:self.ports.setCurrentText('COM6')
+  if not ports:self.log('Kein serieller Anschluss gefunden.') if hasattr(self,'console') else None
+ def connect_device(self):
+  if self.ser:return
+  port=self.ports.currentText()
+  if not port:self.log('ERR: Bitte COM-Port auswählen.');return
+  try:
+   self.ser=serial.Serial(port,int(self.baud.currentText()),timeout=0,write_timeout=.5)
+   self.rx_buffer=b''
+   self.state.setText('●   Verbunden: '+port)
+   self.connect_btn.setEnabled(False);self.disconnect_btn.setEnabled(True)
+   self.log('Verbunden mit '+port+' (Arduino kann beim Öffnen neu starten)')
+   # Arduino Uno/Nano setzt beim Öffnen des COM-Ports meist zurück.
+   QTimer.singleShot(2200,self.query_status)
+  except (serial.SerialException,OSError,ValueError) as e:
+   self.ser=None;self.log('ERR Verbindung: '+str(e))
+ def query_status(self):
+  if self.ser:self.send_serial('STATUS?')
+ def disconnect_device(self):
+  if self.ser:
+   try:self.ser.close()
+   except (serial.SerialException,OSError):pass
+  self.ser=None;self.rx_buffer=b''
+  self.state.setText('●   Nicht verbunden')
+  self.connect_btn.setEnabled(True);self.disconnect_btn.setEnabled(False)
+  self.log('Verbindung getrennt')
+ def send_serial(self,cmd):
+  if not self.ser:
+   self.log('ERR: Nicht verbunden – Befehl nicht gesendet');return False
+  try:
+   self.ser.write((cmd+'\n').encode('ascii'))
+   self.log('> '+cmd);return True
+  except (serial.SerialException,OSError) as e:
+   self.log('ERR Senden: '+str(e));self.disconnect_device();return False
+ def request_att(self,value):
+  value=max(0,min(31.5,round(value*2)/2))
+  self.send_serial(f'ATT {value:.1f}')
+  # Die Anzeige wird erst mit der Arduino-Rückmeldung aktualisiert.
+ def poll_serial(self):
+  if not self.ser:return
+  try:
+   count=self.ser.in_waiting
+   if count:
+    self.rx_buffer+=self.ser.read(min(count,1024))
+    if len(self.rx_buffer)>4096:self.rx_buffer=b'';self.log('ERR: Empfangspuffer zurückgesetzt')
+    while b'\n' in self.rx_buffer:
+     raw,self.rx_buffer=self.rx_buffer.split(b'\n',1)
+     line=raw.decode('utf-8',errors='replace').strip()
+     if line:self.handle_response(line)
+  except (serial.SerialException,OSError) as e:
+   self.log('ERR Empfang: '+str(e));self.disconnect_device()
+ def handle_response(self,line):
+  self.log('< '+line)
+  if line.startswith('STATUS '):
+   values=dict(re.findall(r'(ATT|REAL|CORR)=(-?\d+(?:\.\d+)?)',line))
+   if 'ATT' in values:self.set_att(float(values['ATT']))
+  elif line.startswith('EVENT ATT ') or line.startswith('OK ATT ') or line.startswith('ATT '):
+   try:self.set_att(float(line.split()[-1]))
+   except ValueError:pass
  def run_command(self):
   raw=self.command.text().strip();self.command.clear()
   if not raw:return
-  self.log('> '+raw);parts=raw.upper().split();cmd=parts[0]
+  parts=raw.upper().split();cmd=parts[0]
   try:
-   if cmd=='ATT?':self.log(f'{self.att:.1f} dB')
-   elif cmd=='ATT' and len(parts)==2:self.set_att(float(parts[1].replace(',','.')));self.log(f'OK: Dämpfung auf {self.att:.1f} dB gesetzt')
-   elif cmd=='STEP' and len(parts)==2:self.set_att(self.att+float(parts[1].replace(',','.')));self.log(f'OK: {self.att:.1f} dB')
-   elif cmd=='MIN':self.set_att(0);self.log('OK: 0 dB')
-   elif cmd=='MAX':self.set_att(31.5);self.log('OK: 31.5 dB')
-   elif cmd in ('PRESET','STORE') and len(parts)==2:
-    n=int(parts[1]);assert 1<=n<=4;self.selected=n-1;self.refresh_presets();self.recall() if cmd=='PRESET' else self.store()
-   elif cmd=='IDN?':self.log('PE4302 Attenuator Controller v2.1 – by OE9SAU (Simulation)')
-   elif cmd=='HELP':self.log('ATT <Wert> | ATT? | STEP <+/-dB> | MIN | MAX | PRESET 1..4 | STORE 1..4 | IDN? | HELP | SWEEP ...')
-   elif cmd=='SWEEP':self.log('SIMULATION: Sweep für spätere Version vorgesehen.')
-   else:self.log('ERR: Unbekannter Befehl oder Parameter. HELP eingeben.')
+   if cmd in ('PRESET','STORE') and len(parts)==2:
+    n=int(parts[1]);assert 1<=n<=4
+    self.selected=n-1;self.refresh_presets()
+    self.recall() if cmd=='PRESET' else self.store()
+   elif cmd=='SWEEP':self.log('SWEEP wird von Arduino V3.0 nicht unterstützt.')
+   else:self.send_serial(raw.replace(',','.'))
   except (ValueError,AssertionError):self.log('ERR: Ungültiger Parameter')
+ def closeEvent(self,event):
+  if self.ser:
+   try:self.ser.close()
+   except (serial.SerialException,OSError):pass
+  event.accept()
 
 if __name__=='__main__':
  app=QApplication(sys.argv);app.setStyle('Fusion');app.setStyleSheet('QWidget{font-family:Segoe UI;font-size:12px;} QPushButton{border:1px solid #bdcbd9;border-radius:5px;background:#f5f7fa;padding:4px;} QPushButton:hover{background:#e0edff;} QComboBox,QDoubleSpinBox,QLineEdit{border:1px solid #bdcbd9;border-radius:4px;background:white;padding:4px;}');w=Main();w.show();sys.exit(app.exec())

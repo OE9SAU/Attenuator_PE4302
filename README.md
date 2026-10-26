@@ -1,4 +1,4 @@
-# PE4302 Attenuator Controller v2.0
+# PE4302 Attenuator Controller
 **by OE9SAU**
 
 ## Beschreibung
@@ -11,7 +11,7 @@ Der PE4302 ermöglicht eine einstellbare Dämpfung von 0 bis 31,5 dB in Schritte
 - Dämpfung über Schieberegler oder Direkteingabe
 - Schrittweiten: 0,5 / 1 / 3 / 6 dB
 - Vier Speicherplätze für Dämpfungswerte
-- Grafische HF-Darstellung und Frequenzkennlinien
+- Dämpfungsrechner
 - Kommandoeingabe und Statusanzeige
 - USB-/COM-Port-Steuerung vorbereitet
 
@@ -22,14 +22,4 @@ Der PE4302 ermöglicht eine einstellbare Dämpfung von 0 bis 31,5 dB in Schritte
 4. PySide6 wird bei Bedarf automatisch installiert.
 
 ## Aktueller Stand
-Version 2.0 arbeitet im **Simulationsmodus**. Alle Dämpfungseinstellungen werden intern verarbeitet. Eine USB-Verbindung zum Arduino ist noch nicht implementiert.
-
-## Geplante Erweiterungen
-- USB-Steuerung des Arduino
-- Automatischer Dämpfungs-Sweep
-- SCPI-Befehlsunterstützung
-
----
-**Entwicklung: OE9SAU**  
-Version: 2.0  
-Stand: Oktober 2026
+Version 1.01
