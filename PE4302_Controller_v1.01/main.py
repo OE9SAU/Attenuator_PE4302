@@ -4,7 +4,7 @@ import serial
 from serial.tools import list_ports
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPainterPath
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QLabel,QPushButton,QFrame,QSlider,QDoubleSpinBox,QComboBox,QPlainTextEdit,QLineEdit,QGroupBox,QSizePolicy)
-BLUE='#0953a2'; LIGHT='#e7f2fc'; BORDER='#c6d5e5'
+BLUE='#0953a2'; LIGHT='#e7f2fc'; BORDER='#c6d5e5'; RED='#FF4444';BLACK = '#000000';GREEN = '#00FF00';DARK_GREEN = '#006400'
 
 def label(t,bold=False,size=11,color='#111111'):
  x=QLabel(t); x.setStyleSheet(f'color:{color};font-size:{size}px;'+('font-weight:700;' if bold else ''));return x
@@ -37,8 +37,8 @@ class LevelCalculator(QWidget):
   row.addSpacing(30);row.addWidget(label('Dämpfung:',size=12));self.attenuation=label('10,5 dB',True,14,BLUE);row.addWidget(self.attenuation);layout.addLayout(row)
   grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(10)
   grid.addWidget(label('50 Ω · Sinus',size=11,color='#53647a'),0,0)
-  for col, heading in ((1, 'RF IN'), (2, 'RF OUT')):
-   h=label(heading,True,13,BLUE)
+  for col, heading, size, color in ((1, 'RF IN',13,DARK_GREEN),(2, 'RF OUT',13,RED)):
+   h = label(heading, True, size, color)
    h.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
    grid.addWidget(h,0,col)
   self.fields={}
