@@ -1,0 +1,137 @@
+# PE4302 Controller v1.01
+## README – Windows EXE erstellen
+
+**Autor:** OE9SAU  
+**Programmiersprache:** Python 3  
+**GUI:** PySide6  
+**Compiler/Paketierung:** PyInstaller  
+**Zielsystem:** Windows 10 / 11
+
+---
+
+### 1. Voraussetzungen installieren
+
+Python muss auf dem Entwicklungs-PC installiert sein.
+
+Benötigte Python-Pakete installieren:
+
+```cmd
+python -m pip install PySide6 pyserial pyinstaller
+```
+
+Optional pip aktualisieren:
+
+```cmd
+python -m pip install --upgrade pip
+```
+
+### 2. Projektdateien
+
+Folgende Dateien müssen im Projektverzeichnis vorhanden sein:
+
+```text
+PE4302_Controller_v1.01/
+│
+├── main.py
+├── icon.ico
+└── README.md
+```
+
+### 3. EXE erstellen
+
+CMD im Projektverzeichnis öffnen und folgenden Befehl ausführen:
+
+```cmd
+pyinstaller --onefile --windowed --clean --noconfirm --icon=icon.ico --add-data "icon.ico;." --name "PE4302_Controller" main.py
+```
+
+**Bedeutung der Parameter:**
+
+| Parameter | Funktion |
+|---|---|
+| `--onefile` | Erstellt eine einzelne EXE |
+| `--windowed` | Kein zusätzliches Konsolenfenster |
+| `--clean` | Löscht den PyInstaller-Build-Cache |
+| `--noconfirm` | Überschreibt vorhandene Build-Dateien |
+| `--icon=icon.ico` | Legt das EXE-Dateisymbol fest |
+| `--add-data "icon.ico;."` | Integriert das Icon als Ressource |
+| `--name` | Legt den Namen der EXE fest |
+| `main.py` | Python-Hauptprogramm |
+
+### 4. Fertige EXE
+
+Nach erfolgreicher Kompilierung befindet sich die Datei unter:
+
+```text
+dist/
+└── PE4302_Controller.exe
+```
+
+Die EXE kann auf einem anderen kompatiblen Windows-PC ohne separate Python-Installation ausgeführt werden.
+
+### 5. Icon im Python-Programm
+
+Am Ende von `main.py`:
+
+```python
+if __name__ == "__main__":
+    import ctypes
+    from pathlib import Path
+    from PySide6.QtGui import QIcon
+
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+        "OE9SAU.PE4302.Controller.1.01"
+    )
+
+    app = QApplication(sys.argv)
+
+    icon_path = Path(__file__).resolve().parent / "icon.ico"
+    icon = QIcon(str(icon_path))
+
+    app.setWindowIcon(icon)
+
+    window = Main()
+    window.setWindowIcon(icon)
+    window.show()
+
+    sys.exit(app.exec())
+```
+
+Damit wird das Icon für das Programmfenster und die Windows-Taskleiste gesetzt.
+
+### 6. EXE nach Änderungen neu erstellen
+
+Nach jeder Änderung an `main.py`:
+
+```cmd
+pyinstaller --onefile --windowed --clean --noconfirm --icon=icon.ico --add-data "icon.ico;." --name "PE4302_Controller" main.py
+```
+
+Die neue EXE liegt anschließend wieder im Verzeichnis `dist`.
+
+### 7. Fehlerdiagnose
+
+Wenn das Programm nicht startet, eine Testversion mit Konsolenfenster erstellen:
+
+```cmd
+pyinstaller --onefile --console --clean --noconfirm --icon=icon.ico --add-data "icon.ico;." --name "PE4302_Controller_Debug" main.py
+```
+
+Diese Version zeigt Python-Fehlermeldungen in der Konsole an.
+
+### 8. Build-Dateien löschen
+
+Folgende Dateien und Ordner können nach erfolgreicher Erstellung gelöscht werden:
+
+```text
+build/
+PE4302_Controller.spec
+```
+
+Auch `dist` kann gelöscht werden, wenn die fertige EXE bereits gesichert wurde.
+
+**Hinweis:** Für zukünftige Builds müssen `main.py` und `icon.ico` erhalten bleiben.
+
+---
+
+PE4302 Controller v1.01 – by OE9SAU

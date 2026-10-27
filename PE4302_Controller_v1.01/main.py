@@ -5,6 +5,8 @@ from serial.tools import list_ports
 from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush, QPainterPath
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QLabel,QPushButton,QFrame,QSlider,QDoubleSpinBox,QComboBox,QPlainTextEdit,QLineEdit,QGroupBox,QSizePolicy)
 BLUE='#0953a2'; LIGHT='#e7f2fc'; BORDER='#c6d5e5'; RED='#FF4444';BLACK = '#000000';GREEN = '#00FF00';DARK_GREEN = '#006400'
+from PySide6.QtGui import QIcon
+from pathlib import Path
 
 def label(t,bold=False,size=11,color='#111111'):
  x=QLabel(t); x.setStyleSheet(f'color:{color};font-size:{size}px;'+('font-weight:700;' if bold else ''));return x
@@ -48,6 +50,9 @@ class LevelCalculator(QWidget):
   self.input.setStyleSheet("""
       QDoubleSpinBox {
           font-size: 13px;
+          border: 0.5px solid rgba(85, 85, 85, 0.4);
+          border-radius: 3px;
+          padding: 2px;
           padding-left: 13px;
           padding-right: 3px;
       }
@@ -181,6 +186,7 @@ class Main(QMainWindow):
   dr=QHBoxLayout()
   self.spin=QDoubleSpinBox()
   self.spin.setRange(0,31.5)
+  
   self.spin.setSingleStep(.5)
   self.spin.setDecimals(1)
   self.spin.setSuffix(' dB')
@@ -193,6 +199,9 @@ class Main(QMainWindow):
   self.spin.setStyleSheet("""
       QDoubleSpinBox {
           font-size: 13px;
+          border: 0.5px solid rgba(85, 85, 85, 0.4);
+          border-radius: 3px;
+          padding: 2px;
           padding-left: 13px;
           padding-right: 3px;
       }
@@ -401,5 +410,28 @@ class Main(QMainWindow):
    except (serial.SerialException,OSError):pass
   event.accept()
 
-if __name__=='__main__':
- app=QApplication(sys.argv);app.setStyle('Fusion');app.setStyleSheet('QWidget{font-family:Segoe UI;font-size:12px;} QPushButton{border:1px solid #bdcbd9;border-radius:5px;background:#f5f7fa;padding:4px;} QPushButton:hover{background:#e0edff;} QComboBox,QDoubleSpinBox,QLineEdit{border:1px solid #bdcbd9;border-radius:4px;background:white;padding:4px;}');w=Main();w.show();sys.exit(app.exec())
+if __name__ == "__main__":
+    import ctypes
+    from pathlib import Path
+    from PySide6.QtGui import QIcon
+
+    # Eigene Windows-App-ID für die Taskleiste
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+        "OE9SAU.PE4302.Controller.1.01"
+    )
+
+    app = QApplication(sys.argv)
+
+    # Icon-Pfad für Python und PyInstaller-EXE
+    icon_path = Path(__file__).resolve().parent / "icon.ico"
+    icon = QIcon(str(icon_path))
+
+    # Anwendungs-Icon
+    app.setWindowIcon(icon)
+
+    # Hauptfenster
+    window = Main()
+    window.setWindowIcon(icon)
+    window.show()
+
+    sys.exit(app.exec())
