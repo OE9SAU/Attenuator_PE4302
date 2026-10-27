@@ -33,21 +33,22 @@ class LevelCalculator(QWidget):
   super().__init__()
   layout=QVBoxLayout(self);layout.setContentsMargins(8,3,8,3);layout.setSpacing(5)
   row=QHBoxLayout();row.setSpacing(3);row.addWidget(label('RF IN:',True,13))
-
   self.input=QDoubleSpinBox()
   self.input.setRange(-120.0,40.0)
   self.input.setDecimals(1)
   self.input.setSingleStep(1.0)
   self.input.setSuffix(' dBm')
   self.input.setValue(0.0)
-  self.input.setMinimumHeight(34)
-  self.input.setFixedWidth(112)
+  self.input.setMinimumHeight(38)
+  self.input.setFixedWidth(110)
+  self.input.lineEdit().setTextMargins(12, 0, 0, 0)
 
   # Größere Pfeiltasten für RF IN
   self.input.setButtonSymbols(QDoubleSpinBox.UpDownArrows)
   self.input.setStyleSheet("""
       QDoubleSpinBox {
           font-size: 13px;
+          padding-left: 13px;
           padding-right: 3px;
       }
       QDoubleSpinBox::up-button,
@@ -182,14 +183,17 @@ class Main(QMainWindow):
   self.spin.setRange(0,31.5)
   self.spin.setSingleStep(.5)
   self.spin.setDecimals(1)
-  self.spin.setFixedHeight(34)
-  self.spin.setFixedWidth(80)
+  self.spin.setSuffix(' dB')
+  self.spin.setFixedHeight(38)
+  self.spin.setFixedWidth(110)  
+  self.spin.lineEdit().setTextMargins(12, 0, 0, 0)
 
   # Größere Pfeiltasten für die Direkteingabe
   self.spin.setButtonSymbols(QDoubleSpinBox.UpDownArrows)
   self.spin.setStyleSheet("""
       QDoubleSpinBox {
           font-size: 13px;
+          padding-left: 13px;
           padding-right: 3px;
       }
       QDoubleSpinBox::up-button,
@@ -199,7 +203,6 @@ class Main(QMainWindow):
   """)
 
   dr.addWidget(self.spin)
-  dr.addWidget(label('dB',size=14))
   setb=button('Setzen')
   setb.clicked.connect(self.apply_direct_input)
   self.spin.lineEdit().returnPressed.connect(self.apply_direct_input)
