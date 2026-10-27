@@ -26,56 +26,122 @@ class Schematic(QWidget):
   p.setFont(QFont('Arial',12,QFont.Bold));p.drawText(QRectF(cx-90,cy+42,180,24),Qt.AlignCenter,'PE4302')
   p.setFont(QFont('Arial',10));p.drawText(QRectF(cx-130,cy+65,260,45),Qt.AlignHCenter,'0 … 31,5 dB\n0,5 dB Schritte')
 
+
 class LevelCalculator(QWidget):
  """Theoretischer HF-Pegel- und Spannungsrechner für 50 Ohm, Sinussignal."""
  def __init__(self):
   super().__init__()
   layout=QVBoxLayout(self);layout.setContentsMargins(8,3,8,3);layout.setSpacing(5)
   row=QHBoxLayout();row.setSpacing(3);row.addWidget(label('RF IN:',True,13))
-  self.input=QDoubleSpinBox();self.input.setRange(-120.0,40.0);self.input.setDecimals(1);self.input.setSingleStep(1.0);self.input.setSuffix(' dBm');self.input.setValue(0.0);self.input.setMinimumHeight(29)
-  self.input.valueChanged.connect(self.recalculate);self.input.setFixedWidth(100);row.addWidget(self.input)
-  row.addSpacing(30);row.addWidget(label('Dämpfung:',size=12));self.attenuation=label('10,5 dB',True,14,BLUE);row.addWidget(self.attenuation);layout.addLayout(row)
+
+  self.input=QDoubleSpinBox()
+  self.input.setRange(-120.0,40.0)
+  self.input.setDecimals(1)
+  self.input.setSingleStep(1.0)
+  self.input.setSuffix(' dBm')
+  self.input.setValue(0.0)
+  self.input.setMinimumHeight(34)
+  self.input.setFixedWidth(112)
+
+  # Größere Pfeiltasten für RF IN
+  self.input.setButtonSymbols(QDoubleSpinBox.UpDownArrows)
+  self.input.setStyleSheet("""
+      QDoubleSpinBox {
+          font-size: 13px;
+          padding-right: 3px;
+      }
+      QDoubleSpinBox::up-button,
+      QDoubleSpinBox::down-button {
+          width: 22px;
+      }
+      QDoubleSpinBox::up-arrow,
+      QDoubleSpinBox::down-arrow {
+          width: 11px;
+          height: 11px;
+      }
+  """)
+
+
+  self.input.valueChanged.connect(self.recalculate)
+  row.addWidget(self.input)
+  row.addSpacing(30)
+  row.addWidget(label('Dämpfung:',size=12))
+  self.attenuation=label('10,5 dB',True,14,BLUE)
+  row.addWidget(self.attenuation)
+  layout.addLayout(row)
+
   grid=QGridLayout();grid.setHorizontalSpacing(10);grid.setVerticalSpacing(10)
   grid.addWidget(label('50 Ω · Sinus',size=11,color='#53647a'),0,0)
-  for col, heading, size, color in ((1, 'RF IN',13,DARK_GREEN),(2, 'RF OUT',13,RED)):
+
+  for col, heading, size, color in ((1, 'RF IN',13,BLACK),(2, 'RF OUT',13,BLUE)):
    h = label(heading, True, size, color)
    h.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
    grid.addWidget(h,0,col)
+
   self.fields={}
   for idx,(key,title) in enumerate([('dbm','Pegel'),('mw','Leistung'),('rms','U RMS'),('peak','U Peak'),('pp','U Spitze-Spitze')],1):
    grid.addWidget(label(title,size=12),idx,0)
    for col in (1,2):
-    v=label('–',col==2,12,BLUE if col==2 else '#222222');v.setAlignment(Qt.AlignHCenter|Qt.AlignVCenter);v.setContentsMargins(0,0,0,0)
-    grid.addWidget(v,idx,col);self.fields[(key,col)]=v
-  grid.setColumnStretch(0,2);grid.setColumnStretch(1,3);grid.setColumnStretch(2,3)
-  layout.addLayout(grid);layout.addStretch()
-  note=label('Theoretisch · mit Messkorrektur, ohne weitere Frequenzabweichungen',size=10,color='#65758a');note.setWordWrap(True);layout.addWidget(note)
-  self.att=10.5;self.correction=0.0;self.recalculate()
+    v=label('–',col==2,12,BLUE if col==2 else '#222222')
+    v.setAlignment(Qt.AlignHCenter|Qt.AlignVCenter)
+    v.setContentsMargins(0,0,0,0)
+    grid.addWidget(v,idx,col)
+    self.fields[(key,col)]=v
+
+  grid.setColumnStretch(0,2)
+  grid.setColumnStretch(1,3)
+  grid.setColumnStretch(2,3)
+  layout.addLayout(grid)
+  layout.addStretch()
+
+  note=label('Theoretisch · mit Messkorrektur, ohne weitere Frequenzabweichungen',size=10,color='#65758a')
+  note.setWordWrap(True)
+  layout.addWidget(note)
+
+  self.att=10.5
+  self.correction=0.0
+  self.recalculate()
+
  def set_attenuation(self,att,correction=None):
   self.att=float(att)
   if correction is not None:self.correction=float(correction)
   self.recalculate()
+
  def set_correction(self,correction):
-  self.correction=float(correction);self.recalculate()
+  self.correction=float(correction)
+  self.recalculate()
+
  @staticmethod
  def voltage(v):
   av=abs(v)
   if av<0.001:return f'{v*1e6:.3g} µV'.replace('.',',')
   if av<1:return f'{v*1000:.0f} mV'
   return f'{v:.4g} V'.replace('.',',')
+
  @staticmethod
  def power(mw):
   if mw<0.001:return f'{mw*1e6:.3g} nW'.replace('.',',')
   if mw<1:return f'{mw*1000:.4g} µW'.replace('.',',')
   if mw<1000:return f'{mw:.4g} mW'.replace('.',',')
   return f'{mw/1000:.4g} W'.replace('.',',')
+
  def recalculate(self,*args):
   real_att=self.att+self.correction
   self.attenuation.setText(f'{real_att:.1f} dB'.replace('.',','))
+
   for col,dbm in [(1,self.input.value()),(2,self.input.value()-real_att)]:
-   mw=10**(dbm/10);rms=math.sqrt(mw*.001*50)
-   values={'dbm':f'{dbm:.1f} dBm'.replace('.',','),'mw':self.power(mw),'rms':self.voltage(rms),'peak':self.voltage(rms*math.sqrt(2)),'pp':self.voltage(rms*2*math.sqrt(2))}
-   for key,val in values.items():self.fields[(key,col)].setText(val)
+   mw=10**(dbm/10)
+   rms=math.sqrt(mw*.001*50)
+   values={
+    'dbm':f'{dbm:.1f} dBm'.replace('.',','),
+    'mw':self.power(mw),
+    'rms':self.voltage(rms),
+    'peak':self.voltage(rms*math.sqrt(2)),
+    'pp':self.voltage(rms*2*math.sqrt(2))
+   }
+   for key,val in values.items():
+    self.fields[(key,col)].setText(val)
+
 
 class Main(QMainWindow):
  def __init__(self):
@@ -96,14 +162,55 @@ class Main(QMainWindow):
   ticks=QHBoxLayout();
   for n in ['0','5','10','15','20','25','30','31,5']:ticks.addWidget(label(n,size=12));
   a.addLayout(ticks)
+  
   controls=QHBoxLayout();steps=QVBoxLayout();steps.addWidget(label('Schrittweite',True,14));sb=QHBoxLayout();self.stepbuttons=[]
   for val in [.5,1,3,6]:
    btn=button(str(val).replace('.',',')+' dB');btn.clicked.connect(lambda checked=False,v=val:self.set_step(v));sb.addWidget(btn);self.stepbuttons.append((val,btn))
   steps.addLayout(sb);controls.addLayout(steps,4)
-  steplay=QVBoxLayout();steplay.addWidget(label('Schritt',True,14));sr=QHBoxLayout();minus=button('◀  –');plus=button('+  ▶');minus.clicked.connect(lambda:self.request_att(self.att-self.step));plus.clicked.connect(lambda:self.request_att(self.att+self.step));sr.addWidget(minus);sr.addWidget(plus);steplay.addLayout(sr);controls.addLayout(steplay,2)
-  direct=QVBoxLayout();direct.addWidget(label('Direkteingabe',True,14));dr=QHBoxLayout();self.spin=QDoubleSpinBox();self.spin.setRange(0,31.5);self.spin.setSingleStep(.5);self.spin.setDecimals(1);self.spin.setMinimumHeight(40);dr.addWidget(self.spin);dr.addWidget(label('dB',size=14));setb=button('Setzen');setb.clicked.connect(self.apply_direct_input);self.spin.lineEdit().returnPressed.connect(self.apply_direct_input);dr.addWidget(setb);direct.addLayout(dr);controls.addLayout(direct,3);a.addLayout(controls)
+
+  
+  steplay=QVBoxLayout();steplay.addWidget(label('Schritt',True,14));sr=QHBoxLayout()
+  minus=button('◀')
+  plus=button('▶')
+  minus.setStyleSheet("font-size: 18px; font-weight: normal;")
+  plus.setStyleSheet("font-size: 18px; font-weight: normal;");minus.clicked.connect(lambda:self.request_att(self.att-self.step));plus.clicked.connect(lambda:self.request_att(self.att+self.step));sr.addWidget(minus);sr.addWidget(plus);steplay.addLayout(sr);controls.addLayout(steplay,2)
+
+  direct=QVBoxLayout()
+  direct.addWidget(label('Direkteingabe',True,14))
+  dr=QHBoxLayout()
+  self.spin=QDoubleSpinBox()
+  self.spin.setRange(0,31.5)
+  self.spin.setSingleStep(.5)
+  self.spin.setDecimals(1)
+  self.spin.setFixedHeight(34)
+  self.spin.setFixedWidth(80)
+
+  # Größere Pfeiltasten für die Direkteingabe
+  self.spin.setButtonSymbols(QDoubleSpinBox.UpDownArrows)
+  self.spin.setStyleSheet("""
+      QDoubleSpinBox {
+          font-size: 13px;
+          padding-right: 3px;
+      }
+      QDoubleSpinBox::up-button,
+      QDoubleSpinBox::down-button {
+          width: 22px;
+      }
+  """)
+
+  dr.addWidget(self.spin)
+  dr.addWidget(label('dB',size=14))
+  setb=button('Setzen')
+  setb.clicked.connect(self.apply_direct_input)
+  self.spin.lineEdit().returnPressed.connect(self.apply_direct_input)
+  dr.addWidget(setb)
+  direct.addLayout(dr)
+  controls.addLayout(direct,3)
+  a.addLayout(controls)
+
   middle.addWidget(self.panel(a),59)
   pres=QVBoxLayout();pres.addWidget(label('Speicherplätze',True,17,BLUE));pg=QGridLayout();self.pbuttons=[]
+
   for i in range(4):
    b=button('');b.setMinimumHeight(83);b.clicked.connect(lambda checked=False,n=i:self.choose_preset(n));pg.addWidget(b,i//2,i%2);self.pbuttons.append(b)
   pres.addLayout(pg);pres.addStretch();pr=QHBoxLayout();store=button('Speichern');recall=button('Abrufen');store.clicked.connect(self.store);recall.clicked.connect(self.recall);pr.addWidget(store);pr.addWidget(recall);pres.addLayout(pr);middle.addWidget(self.panel(pres),19)
