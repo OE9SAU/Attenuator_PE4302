@@ -42,7 +42,7 @@ PE4302_Controller_v1.01/
 CMD im Projektverzeichnis öffnen und folgenden Befehl ausführen:
 
 ```cmd
-pyinstaller --onefile --windowed --clean --noconfirm --icon=icon.ico --add-data "icon.ico;." --name "PE4302_Controller" main.py
+pyinstaller --onefile --windowed --clean --noconfirm --icon=icon.ico --add-data "icon.ico;." --name "PE4302_Controller_Vxxx" main.py
 ```
 
 **Bedeutung der Parameter:**

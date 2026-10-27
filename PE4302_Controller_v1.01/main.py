@@ -151,7 +151,7 @@ class LevelCalculator(QWidget):
 
 class Main(QMainWindow):
  def __init__(self):
-  super().__init__();self.setWindowTitle('PE4302 Attenuator Controller v2.1 – by OE9SAU');self.resize(1500,1010);self.setMinimumSize(1160,800)
+  super().__init__();self.setWindowTitle('PE4302 Attenuator Controller v1.01 – by OE9SAU');self.resize(1500,1010);self.setMinimumSize(1160,800)
   self.ser=None;self.rx_buffer=b'';self.att=10.5;self.correction=0.0;self.step=0.5;self.presets=[0.,10.,20.,31.5];self.selected=0
   root=QWidget();self.setCentralWidget(root);outer=QVBoxLayout(root);outer.setContentsMargins(12,10,12,10);outer.setSpacing(9)
   top=QHBoxLayout();top.setSpacing(10);outer.addLayout(top,3)
@@ -301,7 +301,7 @@ class Main(QMainWindow):
   terminal=QVBoxLayout();hd=QHBoxLayout();hd.addWidget(label('Kommando-/Statusanzeige',True,16,BLUE));hd.addStretch();clear=button('Löschen');clear.setMaximumWidth(115);clear.clicked.connect(lambda:self.console.clear());hd.addWidget(clear);terminal.addLayout(hd)
   self.console=QPlainTextEdit();self.console.setReadOnly(True);self.console.setStyleSheet('background:#0d151d;color:#43e77d;font:13px Consolas;border:0;border-radius:4px');terminal.addWidget(self.console,1)
   entry=QHBoxLayout();self.command=QLineEdit();self.command.setPlaceholderText('z.B. ATT 10.5, CORR 0.3 oder HELP');self.command.setMinimumHeight(39);self.command.returnPressed.connect(self.run_command);send=button('Senden');send.clicked.connect(self.run_command);entry.addWidget(self.command,1);entry.addWidget(send);terminal.addLayout(entry);bottom.addWidget(self.panel(terminal),56)
-  self.set_step(.5);self.set_att(10.5);self.refresh_presets();self.refresh_ports();self.log('PE4302 Controller v2.1 – by OE9SAU\nUSB: 38400 Baud; Arduino V3.0')
+  self.set_step(.5);self.set_att(10.5);self.refresh_presets();self.refresh_ports();self.log('PE4302 Controller v1.01 – by OE9SAU\nUSB: 38400 Baud; Arduino V3.0')
   self.poll_timer=QTimer(self);self.poll_timer.timeout.connect(self.poll_serial);self.poll_timer.start(30)
  def panel(self,layout):
   f=QFrame();f.setObjectName('panel');f.setLayout(layout);f.setStyleSheet('QFrame#panel{background:#fafcff;border:1px solid #c6d5e5;border-radius:5px;}');layout.setContentsMargins(13,9,13,10);return f
