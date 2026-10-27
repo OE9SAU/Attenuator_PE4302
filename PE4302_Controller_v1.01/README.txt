@@ -9,6 +9,6 @@ Windows-Software zur Steuerung des PE4302 Digital Step Attenuators über USB.
 - Integrierter HF-Pegelrechner (50 Ω)
 - EEPROM-Speicherung
 
-Benötigt Arduino-Firmware "PE4302_OE9SAU_v3.ino"
+Benötigt Arduino-Firmware "PE4302_OE9SAU_v3.0.ino"
 
 **Start:** `start_windows.bat` ausführen, COM-Port auswählen und verbinden.
