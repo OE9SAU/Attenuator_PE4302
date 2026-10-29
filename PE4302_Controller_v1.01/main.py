@@ -36,7 +36,7 @@ class LevelCalculator(QWidget):
   layout=QVBoxLayout(self);layout.setContentsMargins(8,3,8,3);layout.setSpacing(5)
   row=QHBoxLayout();row.setSpacing(3);row.addWidget(label('RF IN:',True,13))
   self.input=QDoubleSpinBox()
-  self.input.setRange(-120.0,40.0)
+  self.input.setRange(-120.0,60.0)
   self.input.setDecimals(1)
   self.input.setSingleStep(1.0)
   self.input.setSuffix(' dBm')
