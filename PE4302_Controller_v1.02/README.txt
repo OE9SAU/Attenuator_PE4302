@@ -1,4 +1,4 @@
-**PE4302 Controller v1.01 – by OE9SAU / USB**
+**PE4302 Controller v1.02 – by OE9SAU / USB**
 
 Windows-Software zur Steuerung des PE4302 Digital Step Attenuators über USB.
 

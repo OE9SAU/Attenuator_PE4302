@@ -27,7 +27,7 @@ Der PE4302 ermöglicht eine einstellbare Dämpfung von **0 bis 31,5 dB in 0,5-dB
 5. COM-Port auswählen und Verbindung zum Arduino herstellen.
 
 ## Aktueller Stand
-- **Windows Controller:** Version 1.01
-- **Arduino-Firmware:** Version 3.0
+- **Windows Controller:** Version 1.02
+- **Arduino-Firmware:** Version 3.1
 - **Status:** USB-Steuerung erfolgreich getestet
 
