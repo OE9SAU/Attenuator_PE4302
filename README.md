@@ -19,6 +19,10 @@ Der PE4302 ermöglicht eine einstellbare Dämpfung von **0 bis 31,5 dB in 0,5-dB
 - Automatische Synchronisation zwischen Arduino und Windows-Software
 - EEPROM-Speicherung der Dämpfung und Messkorrektur
 
+ab V3.1
+- Display-Modus normal und 180° Ansicht wählbar
+
+
 ## Installation
 1. Python 3 unter Windows installieren.
 2. Software herunterladen und entpacken.

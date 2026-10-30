@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='PE4302_Controller_V1.01',
+    name='PE4302_Controller_V1.02',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
